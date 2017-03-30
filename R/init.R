@@ -1,5 +1,9 @@
 # All the real code is in R markdown files.
 
+library( ggplot2 )
+library( assertthat )
+library( matrixStats )
+
 knitr::purl("R/branchmodel.Rmd", output = "R/branchmodel.R")
 source("R/branchmodel.R")
 

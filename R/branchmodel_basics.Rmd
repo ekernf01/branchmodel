@@ -27,7 +27,6 @@ setMethod("show",
             invisible(NULL)
           })
 
-library( ggplot2 )
 #' Plot the data and the branchmodel object on a scatterplot (returned ggplot2 plot).
 #'
 #' Currently just plots the first two variables. 
