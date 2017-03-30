@@ -7,6 +7,6 @@
 plot_branchmodel(branchmodel, main = "")
 }
 \description{
-Currently just plots the first two variables.
+Currently just plots the first two variables. 
 Eventually might switch to plotting a projection onto a cleverly chosen plane.
 }

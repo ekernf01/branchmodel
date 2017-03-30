@@ -1,5 +1,4 @@
 ## ------------------------------------------------------------------------
-library( ggplot2 )
 library( assertthat )
 library( matrixStats )
 
