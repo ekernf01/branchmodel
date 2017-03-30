@@ -3,6 +3,7 @@
 library( ggplot2 )
 library( assertthat )
 library( matrixStats )
+library( princurve )
 
 knitr::purl("R/branchmodel.Rmd", output = "R/branchmodel.R")
 source("R/branchmodel.R")
