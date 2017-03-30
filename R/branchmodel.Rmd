@@ -29,6 +29,7 @@ library( matrixStats )
 #' hard-assigned to one curve. The internal methods iterate
 #' between reassigning the data to the nearest branch and adjusting the branches,
 #' with a heuristic to make the curves roughly meet in the center.
+#' @export
 fit_branchmodel = function( raw_data, max_iter = 20, tol = 0.001 ) {
   branchmodel = new_branchmodel_helper()
   branchmodel@raw_data = raw_data
