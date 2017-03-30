@@ -29,7 +29,7 @@ library( matrixStats )
 #' hard-assigned to one curve. The internal methods iterate
 #' between reassigning the data to the nearest branch and adjusting the branches,
 #' with a heuristic to make the curves roughly meet in the center.
-fit_branchmodel = function( raw_data, max_iter = 20, tol = 0.0001 ) {
+fit_branchmodel = function( raw_data, max_iter = 20, tol = 0.001 ) {
   branchmodel = new_branchmodel_helper()
   branchmodel@raw_data = raw_data
   # # Initialize center to medioid and tips via kmeans++ ish
@@ -67,6 +67,7 @@ new_branchmodel_helper = setClass( "branchmodel",
                                               dist_df       = "data.frame",
                                               assignments   = "integer",
                                               tips          = "matrix",
+                                              tip_indices   = "integer",
                                               models        = "list",
                                               center        = "numeric" ) )
 
@@ -79,14 +80,15 @@ setMethod("get_issues", valueClass = "character", signature = signature(object =
   issues = ""
   n_points  = nrow( object@raw_data )
   dimension = ncol( object@raw_data )
-  if( length( object@center )      != dimension ){ issues = paste0(issues, "dim_center" ) }
-  if( ncol(   object@tips )        != dimension ){ issues = paste0(issues, "dim_tips" ) }
-  if( nrow(   object@dist_df )     != n_points  ){ issues = paste0(issues, "nrow_dist_df" ) }
-  if( length( object@assignments ) != n_points  ){ issues = paste0(issues, "len_assignments" ) }
-  if( nrow(   object@tips )        != 3         ){ issues = paste0(issues, "num_tips" ) }
-  if( length( object@models )      != 3         ){ issues = paste0(issues, "num_models" ) }
-  if( any( sapply( object@models, class ) != rep( "principal.curve", 3 ) ) ){ issues = paste0(issues, "model_class" ) }
-  if( ncol(   object@dist_df )     != 3         ){ issues = paste0(issues, "dim_dist_df" ) }
+  if( length( object@center )      != dimension ){ issues = paste(issues, "dim_center" ) }
+  if( ncol(   object@tips )        != dimension ){ issues = paste(issues, "dim_tips" ) }
+  if( nrow(   object@dist_df )     != n_points  ){ issues = paste(issues, "nrow_dist_df" ) }
+  if( length( object@assignments ) != n_points  ){ issues = paste(issues, "len_assignments" ) }
+  if( nrow(   object@tips )        != 3         ){ issues = paste(issues, "num_tips" ) }
+  if( length(   object@tip_indices ) != 3       ){ issues = paste(issues, "tip_indices" ) }
+  if( length( object@models )      != 3         ){ issues = paste(issues, "num_models" ) }
+  if( any( sapply( object@models, class ) != rep( "principal.curve", 3 ) ) ){ issues = paste(issues, "model_class" ) }
+  if( ncol(   object@dist_df )     != 3         ){ issues = paste(issues, "dim_dist_df" ) }
   return( issues )
 })
 
@@ -114,7 +116,8 @@ initialize_tips = function( branchmodel ){
   tip3_idx = which.max( apply( X = branchmodel@raw_data, MARGIN = 1, 
                                FUN = min_dist_sq_y_z, y = tip2_embedding, z = tip1_embedding ) )
   tip3_embedding = branchmodel@raw_data[tip3_idx, ]
-  branchmodel@tips = as.matrix( Reduce( x = list( tip3_embedding, tip1_embedding, tip2_embedding ), f = rbind ) )
+  branchmodel@tips = as.matrix( Reduce( x = list( tip1_embedding, tip2_embedding, tip3_embedding ), f = rbind ) )
+  branchmodel@tip_indices = c( tip1_idx, tip2_idx, tip3_idx)
   return( branchmodel )
 }
 
@@ -215,14 +218,17 @@ setMethod( "reassign_points", valueClass = "branchmodel",
   branchmodel@assignments = apply( X = branchmodel@dist_df,
                                    MARGIN = 1, FUN = which.min )
   
-  # # Empty branches restart at tips.
-  # # Uses tip plus 10 nearest neighbors, so that the princurve fit works OK.
+  # Empty branches restart at tips. There must be at least two tips in the same cluster (by the
+  # pigeonhole principle), and one of these will be reassigned to the empty cluster.
+  # Tip is accompanied by its 10 nearest neighbors, so that the princurve fit will have enough data.
   for( cluster in 1:3 ){
     if( !cluster %in% branchmodel@assignments ){
-      new_point = sample( x = 1:nrow(branchmodel), size = 1 )
+      tip_assignments = branchmodel@assignments [ branchmodel@tip_indices ]
+      cluster_hogging_tips = which.max( table( tip_assignments ) )
+      which_tip_to_flip = sample( which(tip_assignments == cluster_hogging_tips) )
+      new_point = branchmodel@tip_indices[ which_tip_to_flip ]
       neighbors = c( FNN::knnx.index( query = branchmodel@raw_data[new_point, ], 
-                                   data = branchmodel@raw_data[-new_point, ], k = 10 ) )
-      
+                                      data = branchmodel@raw_data[-new_point, ], k = 10 ) )
       branchmodel@assignments[c(new_point, neighbors)] = cluster
     }
   }

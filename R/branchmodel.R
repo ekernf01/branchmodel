@@ -4,7 +4,7 @@ library( assertthat )
 library( matrixStats )
 
 ## ------------------------------------------------------------------------
-#' Fit a "Y" shape to data
+#' Fit a "Y" shape to data 
 #'
 #' @param raw_data Dataframe with numeric columns.
 #' @param max_iter Default 20.
@@ -15,7 +15,7 @@ library( matrixStats )
 #' hard-assigned to one curve. The internal methods iterate
 #' between reassigning the data to the nearest branch and adjusting the branches,
 #' with a heuristic to make the curves roughly meet in the center.
-function( raw_data, max_iter = 20, tol = 0.0001 ) {
+fit_branchmodel = function( raw_data, max_iter = 20, tol = 0.001 ) {
   branchmodel = new_branchmodel_helper()
   branchmodel@raw_data = raw_data
   # # Initialize center to medioid and tips via kmeans++ ish
@@ -23,12 +23,14 @@ function( raw_data, max_iter = 20, tol = 0.0001 ) {
   branchmodel = initialize_tips( branchmodel )
   # # Distances to branches (using dist to rays from center through tips)
   branchmodel@dist_df = data.frame( matrix( NA, ncol = 3, nrow = nrow(branchmodel) ) )
-  branchmodel = get_simple_sq_distances( branchmodel )
+  branchmodel = get_simple_sq_distances( branchmodel ) 
   # # Assign to nearest branch
+  branchmodel = reassign_points( branchmodel ) 
+  # # Iterate
   branchmodel = fit_branchmodel_internal( branchmodel, max_iter = 20, tol = 0.0001)
 
   # # Check for issues and return
-  issues = get_issues( branchmodel )
+  issues = get_issues( branchmodel ) 
   assertthat::assert_that("" == issues )
   return( branchmodel )
 }
@@ -48,6 +50,7 @@ new_branchmodel_helper = setClass( "branchmodel",
                                               dist_df       = "data.frame",
                                               assignments   = "integer",
                                               tips          = "matrix",
+                                              tip_indices   = "integer",
                                               models        = "list",
                                               center        = "numeric" ) )
 
@@ -60,24 +63,25 @@ setMethod("get_issues", valueClass = "character", signature = signature(object =
   issues = ""
   n_points  = nrow( object@raw_data )
   dimension = ncol( object@raw_data )
-  if( length( object@center )      != dimension ){ issues = paste0(issues, "dim_center" ) }
-  if( ncol(   object@tips )        != dimension ){ issues = paste0(issues, "dim_tips" ) }
-  if( nrow(   object@dist_df )     != n_points  ){ issues = paste0(issues, "nrow_dist_df" ) }
-  if( length( object@assignments ) != n_points  ){ issues = paste0(issues, "len_assignments" ) }
-  if( nrow(   object@tips )        != 3         ){ issues = paste0(issues, "num_tips" ) }
-  if( length( object@models )      != 3         ){ issues = paste0(issues, "num_models" ) }
-  if( sapply( object@models, class ) != rep( "principal.curve", 3 ) ){ issues = paste0(issues, "model_class" ) }
-  if( ncol(   object@dist_df )     != 3         ){ issues = paste0(issues, "dim_dist_df" ) }
+  if( length( object@center )      != dimension ){ issues = paste(issues, "dim_center" ) }
+  if( ncol(   object@tips )        != dimension ){ issues = paste(issues, "dim_tips" ) }
+  if( nrow(   object@dist_df )     != n_points  ){ issues = paste(issues, "nrow_dist_df" ) }
+  if( length( object@assignments ) != n_points  ){ issues = paste(issues, "len_assignments" ) }
+  if( nrow(   object@tips )        != 3         ){ issues = paste(issues, "num_tips" ) }
+  if( length(   object@tip_indices ) != 3       ){ issues = paste(issues, "tip_indices" ) }
+  if( length( object@models )      != 3         ){ issues = paste(issues, "num_models" ) }
+  if( any( sapply( object@models, class ) != rep( "principal.curve", 3 ) ) ){ issues = paste(issues, "model_class" ) }
+  if( ncol(   object@dist_df )     != 3         ){ issues = paste(issues, "dim_dist_df" ) }
   return( issues )
 })
 
 #' Set up the initial guess for the branchmodel. Inspired by kmeans++.
 #'
-#' @details Fix a tip randomly. Take the farthest point from that, and the farthest point from
+#' @details Fix a tip randomly. Take the farthest point from that, and the farthest point from 
 #' those two, and then reset the random one to the farthest from the other two.
 #' Distance to the pair is the minimum over the individual distances.
 initialize_tips = function( branchmodel ){
-
+  
   min_dist_sq_y_z = function( x, y, z = NULL ) {
     d1 = distance_sq( x, y )
     if(is.null(z)){ return(d1) }
@@ -86,21 +90,22 @@ initialize_tips = function( branchmodel ){
   }
   tip3_idx = sample(size = 1, 1:nrow(branchmodel))
   tip3_embedding = branchmodel@raw_data[tip3_idx, ]
-  tip1_idx = which.max( apply( X = branchmodel@raw_data, MARGIN = 1,
+  tip1_idx = which.max( apply( X = branchmodel@raw_data, MARGIN = 1, 
                                FUN = min_dist_sq_y_z, y = tip3_embedding ) )
   tip1_embedding = branchmodel@raw_data[tip1_idx, ]
-  tip2_idx = which.max( apply( X = branchmodel@raw_data, MARGIN = 1,
+  tip2_idx = which.max( apply( X = branchmodel@raw_data, MARGIN = 1, 
                                FUN = min_dist_sq_y_z, y = tip3_embedding, z = tip1_embedding ) )
   tip2_embedding = branchmodel@raw_data[tip2_idx, ]
-  tip3_idx = which.max( apply( X = branchmodel@raw_data, MARGIN = 1,
+  tip3_idx = which.max( apply( X = branchmodel@raw_data, MARGIN = 1, 
                                FUN = min_dist_sq_y_z, y = tip2_embedding, z = tip1_embedding ) )
   tip3_embedding = branchmodel@raw_data[tip3_idx, ]
-  branchmodel@tips = as.matrix( Reduce( x = list( tip3_embedding, tip1_embedding, tip2_embedding ), f = rbind ) )
+  branchmodel@tips = as.matrix( Reduce( x = list( tip1_embedding, tip2_embedding, tip3_embedding ), f = rbind ) )
+  branchmodel@tip_indices = c( tip1_idx, tip2_idx, tip3_idx)
   return( branchmodel )
 }
 
 #' For each point, fills in the distance to each line segment.
-#'
+#' 
 setGeneric( "get_simple_sq_distances", function( branchmodel, ... ) standardGeneric( "get_simple_sq_distances" ) )
 setMethod("get_simple_sq_distances", valueClass = "branchmodel",
           signature = signature( branchmodel = "branchmodel" ),
@@ -118,8 +123,8 @@ setMethod("get_simple_sq_distances", valueClass = "branchmodel",
 
 ## ------------------------------------------------------------------------
 #' Internal branchmodel function that performs fitting.
-#'
-setGeneric( "fit_branchmodel_internal",
+#' 
+setGeneric( "fit_branchmodel_internal", 
             function( branchmodel, max_iter = 20, tol = 0.0001 ) standardGeneric( "fit_branchmodel_internal" ) )
 setMethod("fit_branchmodel_internal", valueClass = "branchmodel",
           signature = signature(branchmodel = "branchmodel", max_iter = "numeric", tol = "numeric"),
@@ -130,21 +135,21 @@ setMethod("fit_branchmodel_internal", valueClass = "branchmodel",
     print( plot_branchmodel( branchmodel, "" ) )
     branchmodel = fit_branches( branchmodel )
     branchmodel = relocate_center( branchmodel )
-    prop_just_reassigned = mean( old_assignments != branchmodel@assignments )
-    if( prop_just_reassigned < tol ) {
+    prop_just_reassigned = mean(old_assignments != branchmodel@assignments)
+    if( prop_just_reassigned < tol ) { 
       print( paste0( "converged after ", i, " iterations" ) )
       break
     }
   }
-  if( prop_just_reassigned >= tol ) {
-    warning( paste0( "Did not converge: prop_just_reassigned = ", prop_just_reassigned, ", max_iter = ", max_iter, "." ) )
+  if( prop_just_reassigned >= tol ) { 
+    warning( paste0( "Did not converge: prop_just_reassigned = ", prop_just_reassigned, ", max_iter = ", max_iter, "." ) ) 
   }
   return( branchmodel )
 })
 
 ## ------------------------------------------------------------------------
 #' Optimize individual branch models given branch assignments.
-#'
+#' 
 #' This function updates `@dist_df` and `@models`.
 setGeneric( "fit_branches", function( branchmodel, ... ) standardGeneric( "fit_branches" ) )
 setMethod( "fit_branches", valueClass = "branchmodel",
@@ -153,51 +158,54 @@ setMethod( "fit_branches", valueClass = "branchmodel",
   # For each branch, fit a principal curve.
   # To make it touch the center, I augment the data with copies of the current center.
   # I remove them once the fitting has finished.
-
+             
   for(i in 1:3){
-
+    
     # augment with dummy data at center and fit
     this_cluster = which( branchmodel@assignments == i )
-    n_aug = ceiling( 0.15*length( this_cluster ) )
+    n_aug = ceiling( 0.15*length( this_cluster ) ) 
     center_copies = t( matrix( branchmodel@center, ncol = n_aug, nrow = length( branchmodel@center ) ) )
     colnames( center_copies ) = colnames( branchmodel@raw_data )
     pc_input = as.matrix( rbind( branchmodel@raw_data[this_cluster, ], center_copies ) )
     branchmodel@models[[i]] = princurve::principal.curve( x = pc_input, smoother = "lowess" )
-
+    
     #remove dummy data
     branchmodel@models[[i]] = princurve_truncate( branchmodel@models[[i]], n_remove = n_aug )
-
+    
     #get distances to curve
-    projected_all = get.lam(x = as.matrix( branchmodel@raw_data ),
-                            s = branchmodel@models[[i]]$s,
-                            tag = branchmodel@models[[i]]$tag,
+    projected_all = get.lam(x = as.matrix( branchmodel@raw_data ), 
+                            s = branchmodel@models[[i]]$s, 
+                            tag = branchmodel@models[[i]]$tag, 
                             stretch = 1 )
     branchmodel@dist_df[, i] = apply( branchmodel@raw_data - projected_all$s, 1, norm2 )
   }
-
+  
   return(branchmodel)
 })
 
 #' Reassign each point to the nearest branch.
-#'
+#' 
 #' This function updates `@assignments`.
 setGeneric( "reassign_points", function( branchmodel, ... ) standardGeneric( "reassign_points" ) )
 setMethod( "reassign_points", valueClass = "branchmodel",
            signature = signature( branchmodel = "branchmodel" ),
            function             ( branchmodel ){
-
+             
   # # hard assignment
   branchmodel@assignments = apply( X = branchmodel@dist_df,
                                    MARGIN = 1, FUN = which.min )
-
-  # # Empty branches restart at tips.
-  # # Uses tip plus 10 nearest neighbors, so that the princurve fit works OK.
+  
+  # Empty branches restart at tips. There must be at least two tips in the same cluster (by the
+  # pigeonhole principle), and one of these will be reassigned to the empty cluster.
+  # Tip is accompanied by its 10 nearest neighbors, so that the princurve fit will have enough data.
   for( cluster in 1:3 ){
     if( !cluster %in% branchmodel@assignments ){
-      new_point = sample( x = 1:nrow(branchmodel), size = 1 )
-      neighbors = c( FNN::knnx.index( query = branchmodel@raw_data[new_point, ],
-                                   data = branchmodel@raw_data[-new_point, ], k = 10 ) )
-
+      tip_assignments = branchmodel@assignments [ branchmodel@tip_indices ]
+      cluster_hogging_tips = which.max( table( tip_assignments ) )
+      which_tip_to_flip = sample( which(tip_assignments == cluster_hogging_tips) )
+      new_point = branchmodel@tip_indices[ which_tip_to_flip ]
+      neighbors = c( FNN::knnx.index( query = branchmodel@raw_data[new_point, ], 
+                                      data = branchmodel@raw_data[-new_point, ], k = 10 ) )
       branchmodel@assignments[c(new_point, neighbors)] = cluster
     }
   }
@@ -209,13 +217,13 @@ setMethod( "reassign_points", valueClass = "branchmodel",
 #' @details This function updates `@center`. It takes some care because with this alternating
 #' approach, the center could get stuck partway out a branch, with the inner part of the branch
 #' mistakenly assigned to both of the wrong branches. To avoid this issue, ambiguous points are
-#' identified as those close to multiple branches, and
+#' identified as those close to multiple branches, and 
 #' the center is assigned to the medioid of the ambiguous points.
 setGeneric( "relocate_center", function( branchmodel, ... ) standardGeneric( "relocate_center" ) )
 setMethod( "relocate_center", valueClass = "branchmodel",
            signature = signature( branchmodel = "branchmodel" ),
            function             ( branchmodel ){
-
+             
   min_dists    = apply( branchmodel@dist_df, 2, min )
   middle_dists = apply( branchmodel@dist_df, 2, min )
   ambiguous_cells = branchmodel@raw_data[middle_dists / min_dists < 3, ]
