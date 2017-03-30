@@ -27,10 +27,12 @@ setMethod("show",
             invisible(NULL)
           })
 
+library( ggplot2 )
 #' Plot the data and the branchmodel object on a scatterplot (returned ggplot2 plot).
 #'
 #' Currently just plots the first two variables. 
 #' Eventually might switch to plotting a projection onto a cleverly chosen plane.
+#' @export
 plot_branchmodel = function( branchmodel, main = "" ){
   
   # Plot the points
