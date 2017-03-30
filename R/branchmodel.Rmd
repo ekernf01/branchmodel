@@ -145,7 +145,6 @@ setMethod("fit_branchmodel_internal", valueClass = "branchmodel",
   for( i in 1:max_iter ){
     old_assignments = branchmodel@assignments
     branchmodel = reassign_points( branchmodel )
-    print( plot_branchmodel( branchmodel, "" ) )
     branchmodel = fit_branches( branchmodel )
     branchmodel = relocate_center( branchmodel )
     prop_just_reassigned = mean(old_assignments != branchmodel@assignments)

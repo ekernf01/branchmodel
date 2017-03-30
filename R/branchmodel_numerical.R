@@ -2,7 +2,6 @@
 
 # # Shitty little vector 2-norm shortcut
 norm2 = function(x) { sqrt( sum( x*x ) ) }
-hinge_loss = function( x ) ( x*(x>0) )
 distance_sq =  function( x, y ) sum(( x - y )*( x - y ))
   
 # # Calculates the distance between `point` and the closest convex combination
@@ -54,7 +53,6 @@ setMethod( "distance_to_ray", valueClass = "numeric",
   }
 })
 
-library( princurve )
 #' Remove the last few points from a principal curve.
 #' 
 #' The tricky part is the tag, which is not ordered the same way as the others.

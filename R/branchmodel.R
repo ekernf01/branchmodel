@@ -1,8 +1,4 @@
 ## ------------------------------------------------------------------------
-library( assertthat )
-library( matrixStats )
-
-## ------------------------------------------------------------------------
 #' Fit a "Y" shape to data 
 #'
 #' @param raw_data Dataframe with numeric columns.
@@ -173,10 +169,10 @@ setMethod( "fit_branches", valueClass = "branchmodel",
     branchmodel@models[[i]] = princurve_truncate( branchmodel@models[[i]], n_remove = n_aug )
     
     #get distances to curve
-    projected_all = get.lam(x = as.matrix( branchmodel@raw_data ), 
-                            s = branchmodel@models[[i]]$s, 
-                            tag = branchmodel@models[[i]]$tag, 
-                            stretch = 1 )
+    projected_all = princurve::get.lam(x = as.matrix( branchmodel@raw_data ), 
+                                       s = branchmodel@models[[i]]$s, 
+                                       tag = branchmodel@models[[i]]$tag, 
+                                       stretch = 1 )
     branchmodel@dist_df[, i] = apply( branchmodel@raw_data - projected_all$s, 1, norm2 )
   }
   

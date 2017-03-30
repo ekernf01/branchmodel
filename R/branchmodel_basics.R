@@ -15,7 +15,6 @@ setMethod("show",
             invisible(NULL)
           })
 
-library( ggplot2 )
 #' Plot the data and the branchmodel object on a scatterplot (returned ggplot2 plot).
 #'
 #' Currently just plots the first two variables. 
@@ -27,11 +26,11 @@ plot_branchmodel = function( branchmodel, main = "" ){
   par = as.data.frame( rbind( branchmodel@center, branchmodel@tips) )
   embedding = branchmodel@raw_data[, 1:2]
   names( par ) = names(embedding) = c("X1", "X2")
-  p = ggplot( ) + ggtitle( main ) +
-    geom_point( aes( x = X1, y = X2, colour = factor( branch ) ),
-                data = cbind( embedding, 
-                              branch = branchmodel@assignments ) )+
-    geom_point( aes(x = X1, y = X2), colour = "black", data = par) 
+  p = ggplot2::ggplot( ) + ggplot2::ggtitle( main ) +
+    ggplot2::geom_point( aes( x = X1, y = X2, colour = factor( branch ) ),
+                         data = cbind( embedding, 
+                                       branch = branchmodel@assignments ) )+
+    ggplot2::geom_point( aes(x = X1, y = X2), colour = "black", data = par) 
   
   # Early in the iteration, this function might get called on a branchmodel with the @models slot not filled yet.
   if(length(branchmodel@models) != 3){
@@ -46,10 +45,10 @@ plot_branchmodel = function( branchmodel, main = "" ){
     data_i = cbind(data_i, branch = i)
     pc_to_plot = rbind( pc_to_plot, data_i)
   }
-  p = p + geom_line ( mapping = aes( colour = factor( branch ),
-                                     group  = factor( branch ), 
-                                     x = x, y = y ), 
-                      data = pc_to_plot )
+  p = p + ggplot2::geom_line ( mapping = aes( colour = factor( branch ),
+                                              group  = factor( branch ), 
+                                              x = x, y = y ), 
+                               data = pc_to_plot )
   
   return(p)
 }
