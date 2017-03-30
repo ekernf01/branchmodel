@@ -1,0 +1,9 @@
+Package: branchmodel
+Title: Fit A 'Y' Shape to Data'
+Version: 0.0.0.9000
+Authors@R: person("Eric", "Kernfeld", email = "eric.kern13@gmail.com", role = c("aut", "cre"))
+Description: `branchmodel` fits a 'Y' shape to data, similar to a single principal component but more branchlike.
+Depends: R (>= 3.3.1)
+License: What license is it under?
+Encoding: UTF-8
+LazyData: true
