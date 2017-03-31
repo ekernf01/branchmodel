@@ -25,12 +25,16 @@ plot_branchmodel = function( branchmodel, main = "" ){
   # Plot the points
   par = as.data.frame( rbind( branchmodel@center, branchmodel@tips) )
   embedding = branchmodel@raw_data[, 1:2]
-  names( par ) = names(embedding) = c("X1", "X2")
+  names( par ) = names(embedding) = colnames(branchmodel@raw_data)
   p = ggplot2::ggplot( ) + ggplot2::ggtitle( main ) +
-    ggplot2::geom_point( aes( x = X1, y = X2, colour = factor( branch ) ),
-                         data = cbind( embedding, 
-                                       branch = branchmodel@assignments ) )+
-    ggplot2::geom_point( aes(x = X1, y = X2), colour = "black", data = par) 
+    ggplot2::geom_point(data = cbind( embedding, 
+                                      branch = branchmodel@assignments ),
+                        aes_string( x = colnames(branchmodel@raw_data)[1], 
+                                    y = colnames(branchmodel@raw_data)[2], 
+                                    colour = "factor( branch )" ) ) +
+    ggplot2::geom_point( aes_string( x = colnames(branchmodel@raw_data)[1], 
+                                     y = colnames(branchmodel@raw_data)[2]),
+                         colour = "black", data = par) 
   
   # Early in the iteration, this function might get called on a branchmodel with the @models slot not filled yet.
   if(length(branchmodel@models) != 3){
@@ -45,9 +49,10 @@ plot_branchmodel = function( branchmodel, main = "" ){
     data_i = cbind(data_i, branch = i)
     pc_to_plot = rbind( pc_to_plot, data_i)
   }
-  p = p + ggplot2::geom_line ( mapping = aes( colour = factor( branch ),
-                                              group  = factor( branch ), 
-                                              x = x, y = y ), 
+  p = p + ggplot2::geom_line ( aes_string( x = colnames(branchmodel@raw_data)[1], 
+                                           y = colnames(branchmodel@raw_data)[2],
+                                           colour = "factor( branch )",
+                                           group  = "factor( branch )" ), 
                                data = pc_to_plot )
   
   return(p)

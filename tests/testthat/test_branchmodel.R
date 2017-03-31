@@ -14,10 +14,10 @@ expect_equal( sqrt(2*2.25), distance_to_line_segment( c( 1, 1 ),
                                                       c( 0, 3 ) ) )
 
 
-branchmodel1 =  fit_branchmodel( raw_data = data.frame( x = c( 1:50, 26:50 ) + 3*rnorm(75),
-                                                        y = c( 1:50, 25:1  ) + 3*rnorm(75) ) )
+branchmodel1 =  fit_branchmodel( raw_data = data.frame( x1 = c( 1:50, 26:50 ) + 3*rnorm(75),
+                                                        y1 = c( 1:50, 25:1  ) + 3*rnorm(75) ) )
 show( branchmodel1 )
-# branchmodel1 = find_branch_point( branchmodel = branchmodel1, max_iter = 20, tol = 0.0004 )
+plot_branchmodel( branchmodel1 )
 
 c1 = data.frame( x = rnorm(25) + 01,  y = rnorm(25) + 02 )
 c2 = data.frame( x = rnorm(25) + 05,  y = rnorm(25) + 05 )
