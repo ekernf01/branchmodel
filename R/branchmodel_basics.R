@@ -35,6 +35,7 @@ plot_branchmodel = function( branchmodel, main = "" ){
     ggplot2::geom_point( aes_string( x = colnames(branchmodel@raw_data)[1], 
                                      y = colnames(branchmodel@raw_data)[2]),
                          colour = "black", data = par) 
+  p = p + scale_color_manual( values = c("grey", scales::hue_pal()(3)))
   
   # Early in the iteration, this function might get called on a branchmodel with the @models slot not filled yet.
   if(length(branchmodel@models) != 3){

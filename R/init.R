@@ -2,8 +2,11 @@
 
 library( ggplot2 )
 library( assertthat )
-library( matrixStats )
 library( princurve )
+library( FNN )
+library( kknn )
+library( kernlab )
+
 
 knitr::purl("R/branchmodel.Rmd", output = "R/branchmodel.R")
 source("R/branchmodel.R")

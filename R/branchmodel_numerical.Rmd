@@ -78,4 +78,58 @@ setMethod( "princurve_truncate", valueClass = "principal.curve",
   pc$tag     = intersect(pc$tag, keep)
   return( pc )
 })
+
+#' Find a connected component of a directed graph.
+#'
+#' @param neighbors neighbors directly reachable from each vertex, so there is an edge from `i` to `neighbors[i, j]`.
+#' (This is built for knn graphs, hence the weird representation.)
+#' @param start_idx Algorithm starts here and searches outward.
+get_connected_component = function( neighbors, start_idx ){
+  outside_edges = start_idx
+  conn_comp_idx = start_idx
+  for( i in 1:nrow(neighbors) ){
+    conn_comp_idx = union( conn_comp_idx, outside_edges )
+    outside_edges = c( neighbors[ outside_edges, ] ) #Move out a layer
+    outside_edges = setdiff( outside_edges, conn_comp_idx ) #exclude things already searched
+    if(length(outside_edges)==0){break}
+  }
+  conn_comp_idx = union( conn_comp_idx, outside_edges )
+  return( conn_comp_idx )
+}
+
+#' Find the closest pair of points, one in one class and the other in another class.
+#'
+bipartite_closest_pair = function( coords_1, coords_2 ){
+  knn_mod = FNN::get.knnx( query = coords_1, data = coords_2, k = 1 )
+  nearest_ind_1 = which.min(knn_mod$nn.dist)
+  nearest_ind_2 = knn_mod$nn.index[nearest_ind_1, 1]
+  nearest_coords = rbind( coords_1[nearest_ind_1, ], coords_2[nearest_ind_2, ])
+  return( list( inds = c(nearest_ind_1, nearest_ind_2), 
+                coords = nearest_coords, 
+                distance = knn_mod$nn.dist[nearest_ind_1, 1]) )
+}
+
+#' Calls `kknn::specClust` with preprocessing to remove outliers and postprocessing to label them.
+#' 
+#' @value Atomic vector of length `nrow(data)` containing cluster labels.
+#' @details This is an attempt to circumvent this ARPACK failure issue: https://github.com/KlausVigo/kknn/issues/7
+kknn_specClust_outlier_removal = function( data, centers, nn = 7, ...){
+  # remove outliers
+  dist_to_nn = rowSums( FNN::get.knn( data = data, k = nn, algorithm = c( "cover_tree" ) ) $nn.dist )
+  cutoff = mean( dist_to_nn ) + 2*sd( dist_to_nn )
+  is_outlier = dist_to_nn > cutoff
+    
+  # Cluster
+  cluster_mod = kknn::specClust(data[!is_outlier, ], centers = centers, nn = nn,  ...)
+  labels = rep(NA, nrow(data))
+  labels[!is_outlier] = cluster_mod$cluster
+  
+  # label outliers
+  labels[is_outlier] = FNN::knn( test  = data[ is_outlier, ], 
+                                 train = data[!is_outlier, ], 
+                                 cl = labels[!is_outlier], 
+                                 k = nn, algorith = "cover_tree" )
+  assertthat::assert_that(!any(is.na(labels)))
+  return(labels)
+}
 ```
