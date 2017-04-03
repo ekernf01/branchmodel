@@ -7,11 +7,12 @@ This R package uses an alternating approach to fit branching models to data.
 Unfortunately, I am a newbie with S4 classes and R packages, so `branchmodel` won't work unless you load in some dependencies. 
 
 	devtools::install_github("ekernf01/branchmodel")
-	library(branchmodel)
 	library( ggplot2 )
 	library( assertthat )
-	library( matrixStats )
 	library( princurve )
+	library( FNN )
+	library( kknn )
+	library( kernlab )
 
 #####Usage 
 
