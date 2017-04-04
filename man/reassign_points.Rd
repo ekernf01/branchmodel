@@ -2,7 +2,7 @@
 % Please edit documentation in R/branchmodel.R
 \name{reassign_points}
 \alias{reassign_points}
-\title{Reassign each point to the nearest branch.}
+\title{Reassign each point to the nearest branch. Assign ambiguous points the label 0.}
 \usage{
 reassign_points(branchmodel, ...)
 }

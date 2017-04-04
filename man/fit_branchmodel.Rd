@@ -4,7 +4,7 @@
 \alias{fit_branchmodel}
 \title{Fit a "Y" shape to data}
 \usage{
-fit_branchmodel(raw_data, max_iter = 20, tol = 0.001)
+fit_branchmodel(raw_data, max_iter = 10, tol = 0.01)
 }
 \arguments{
 \item{raw_data}{Dataframe with numeric columns.}

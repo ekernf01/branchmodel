@@ -4,15 +4,11 @@
 \alias{relocate_center}
 \title{Update the branch-point.}
 \usage{
-relocate_center(branchmodel, ...)
+relocate_center(branchmodel, iter, previous_max_ambiguity)
 }
 \description{
 Update the branch-point.
 }
 \details{
-This function updates `@center`. It takes some care because with this alternating
-approach, the center could get stuck partway out a branch, with the inner part of the branch
-mistakenly assigned to both of the wrong branches. To avoid this issue, ambiguous points are
-identified as those close to multiple branches, and 
-the center is assigned to the medioid of the ambiguous points.
+This function updates `@center`.
 }

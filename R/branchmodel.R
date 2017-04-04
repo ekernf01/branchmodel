@@ -72,7 +72,6 @@ setGeneric( "get_simple_sq_distances", function( branchmodel, ... ) standardGene
 setMethod("get_simple_sq_distances", valueClass = "branchmodel",
           signature = signature( branchmodel = "branchmodel" ),
           function             ( branchmodel ) {
-  # # Key helper functions
   for(i in 1:nrow( branchmodel@tips ) ){
     dtip = function(x) distance_to_ray(tip1 = branchmodel@tips[i, ] , tip2 = branchmodel@center, point = x)
     branchmodel@dist_df[ , i ] = apply( X = branchmodel@raw_data[ , 1:2 ],
@@ -80,7 +79,6 @@ setMethod("get_simple_sq_distances", valueClass = "branchmodel",
   }
   return( branchmodel )
 })
-
 
 
 ## ------------------------------------------------------------------------
@@ -96,7 +94,7 @@ setMethod("get_simple_sq_distances", valueClass = "branchmodel",
 #' between reassigning the data to the nearest branch and adjusting the branches,
 #' with a heuristic to make the curves roughly meet in the center.
 #' @export
-fit_branchmodel = function( raw_data, max_iter = 20, tol = 0.001 ) {
+fit_branchmodel = function( raw_data, max_iter = 20, tol = 0.01 ) {
   branchmodel = new_branchmodel_helper()
   branchmodel@raw_data = raw_data
   # # Initialize center to medioid and tips via kmeans++ ish
@@ -108,7 +106,7 @@ fit_branchmodel = function( raw_data, max_iter = 20, tol = 0.001 ) {
   # # Assign to nearest branch
   branchmodel = reassign_points( branchmodel ) 
   # # Iterate
-  branchmodel = fit_branchmodel_internal( branchmodel, max_iter = 20, tol = 0.0001)
+  branchmodel = fit_branchmodel_internal( branchmodel, max_iter = max_iter, tol = tol )
 
   # # Check for issues and return
   issues = get_issues( branchmodel ) 
@@ -121,10 +119,10 @@ fit_branchmodel = function( raw_data, max_iter = 20, tol = 0.001 ) {
 #' Internal branchmodel function that performs fitting.
 #' 
 setGeneric( "fit_branchmodel_internal", 
-            function( branchmodel, max_iter = 10, tol = 0.0001 ) standardGeneric( "fit_branchmodel_internal" ) )
+            function( branchmodel, max_iter, tol ) standardGeneric( "fit_branchmodel_internal" ) )
 setMethod("fit_branchmodel_internal", valueClass = "branchmodel",
           signature = signature(branchmodel = "branchmodel", max_iter = "numeric", tol = "numeric"),
-          function             (branchmodel, max_iter = 10, tol = 0.02 ) {
+          function             (branchmodel, max_iter, tol ) {
   for( i in 1:max_iter ){
     old_assignments = branchmodel@assignments
     branchmodel = fit_branches( branchmodel )
@@ -148,18 +146,15 @@ setMethod("fit_branchmodel_internal", valueClass = "branchmodel",
 
 #' Update the branch-point.
 #'
-#' @details This function updates `@center`. It takes some care because with this alternating
-#' approach, the center could get stuck partway out a branch, with the inner parts of the branch
-#' mistakenly assigned to either of the wrong branches. To avoid this issue, ambiguous points are
-#' identified as those close to multiple branches, but far from the center. 
-#' The center is moved towards the weighted mean of the data, weighted by ambiguity.
-#' This could result in endless cycling, so the motion of the center is dampened at each iteration.
+#' @details This function updates `@center`. 
 setGeneric( "relocate_center", function( branchmodel, iter, previous_max_ambiguity ) standardGeneric( "relocate_center" ) )
 setMethod( "relocate_center", valueClass = "branchmodel",
            signature = signature( branchmodel = "branchmodel", iter = "numeric" ),
            function             ( branchmodel, iter ){
-   branchmodel@center = colMeans( branchmodel@raw_data[branchmodel@assignments == 0, ])          
-  return( branchmodel )
+  if(any(branchmodel@assignments == 0)){
+    branchmodel@center = colMeans( branchmodel@raw_data[branchmodel@assignments == 0, ])    
+  } 
+return( branchmodel )
 })
 
 #' Optimize individual branch models given branch assignments.
@@ -221,46 +216,13 @@ setMethod( "reassign_points", valueClass = "branchmodel",
 
   # Make sure assigned cells are in one contiguous block. Assign disconnected segments as ambiguous (0).
   for( cluster in 1:3 ){
-    this_cluster_idx = which(branchmodel@assignments == cluster)
-    this_cluster_coords = branchmodel@raw_data[this_cluster_idx, ]
-  
-    # Make 2 clusters. kknn::specClust is fast, but buggy. kernlab::specc is slower, but reliable.
-    assignments_subcluster = NA
-    assignments_subcluster = tryCatch( kknn_specClust_outlier_removal( data=as.matrix(this_cluster_coords), 
-                                                                       centers=2, nn = 20 ),
-                                       error = function( e ) ( return( "failure" ) ) )
-    if( any( is.na( assignments_subcluster ) ) ){
-      stop("Branchmodel has failed. Please report this to the maintainers as 'the spectral clustering bug in branchmodel'.")
-    }
-    if( identical( assignments_subcluster, "failure" ) ){
-      cat("\nAdjusting to ARPACK/kknn failure by switching to a slower method. \n")
-      assignments_subcluster = kernlab::specc( x=as.matrix(this_cluster_coords), centers=2 )@.Data
-    }
-
-    # Does the gap between them have many ambiguous points nearby?
-    gap = bipartite_closest_pair( coords_1 = this_cluster_coords[assignments_subcluster==1, ], 
-                                  coords_2 = this_cluster_coords[assignments_subcluster==2, ] )
-    gap = (gap$coords[1, , drop = F] + gap$coords[2, , drop = F]) / 2
-    gap_nearby_points = c(FNN::get.knnx( query = gap, data = branchmodel@raw_data, k = 20 )$nn.index)
-    gap_nearby_assigments = table( factor( branchmodel@assignments[gap_nearby_points], levels = 0:3))
-    gap_nearby_assigments = gap_nearby_assigments / sum(gap_nearby_assigments)
-    
-    # If yes, discard the non-tip-containing cluster as a disconnected segment.
-    tip_idx_within_cluster = which( branchmodel@tip_indices[cluster] == this_cluster_idx )
-    subcluster_with_tip = assignments_subcluster[tip_idx_within_cluster]
-    subcluster_without_tip = ifelse(subcluster_with_tip==2, 1, 2)
-    if( gap_nearby_assigments[["0"]] >= 0.25 ){
-      indices_to_discard = this_cluster_idx[(assignments_subcluster == subcluster_without_tip)]
-      branchmodel@assignments[ indices_to_discard ] = as.integer(0)
-    }
+    this_cluster_idx = which( branchmodel@assignments == cluster )
+    conn_comp = find_contiguous_region( all_points = branchmodel@raw_data, 
+                                        good_idx = this_cluster_idx, 
+                                        root_idx = branchmodel@tip_indices[cluster] )
+    indices_to_discard = setdiff( this_cluster_idx, conn_comp )
+    branchmodel@assignments[ indices_to_discard ] = as.integer(0)
   }
-  # Used during development
-  #  plot_branchmodel(branchmodel)
-  # qplot( x = this_cluster_coords$branch_viz_1,
-  #        y = this_cluster_coords$branch_viz_2,
-  #        colour = assignments_subcluster ) + 
-  #   geom_point(data = gap, aes( x = branch_viz_1, y = branch_viz_2), colour = "red")
-
   
   
   # Empty branches restart at tips. If a cluster is empty, there must be at least two tips in the same 

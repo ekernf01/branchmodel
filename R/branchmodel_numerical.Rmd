@@ -132,4 +132,85 @@ kknn_specClust_outlier_removal = function( data, centers, nn = 7, ...){
   assertthat::assert_that(!any(is.na(labels)))
   return(labels)
 }
+
+#' Find a contiguous subset of points.
+#' @param all_points Data used.
+#' @param good_idx The "good" points are `all_points[good_idx, ]`.
+#' @param root_idx The indices returned include this number.
+#' @value An atomic vector of indexes such that `all_points[output, ]` is
+#' contiguous and not interrupted by `all_points[-output, ]`.
+#' @details Given a set of "good" points and a "root", find a 
+#' group of good points that contains the root and doesn't span gaps
+#' with nearby "bad" points.
+find_contiguous_region = function( all_points, good_idx, root_idx ) {
+  assertthat::assert_that( root_idx %in% good_idx )
+  assertthat::assert_that( all( good_idx %in% 1:nrow( all_points ) ) )
+  good_idx = unique( good_idx )
+  
+  # Notation convention:
+  #
+  # - variables ending in "_a" index `all_points`.
+  # - variables ending in "_g" index `good_idx` or `good_points` or the cluster labels.
+  # - variables ending in "_c" index `connected_set_g`.
+  # - variables ending in "_s" index something else.
+  
+  root_idx_a = root_idx
+  good_idx_a = good_idx
+  is_good = rep("bad", nrow(all_points)); is_good[good_idx_a] = "good"; is_good = factor(is_good)
+    
+  # Subset good points and convert root index to access it
+  good_points = all_points[good_idx_a, ]
+  root_idx_g = which(root_idx==good_idx_a)
+  assertthat::are_equal(good_points[root_idx_g, ], all_points[root_idx_a, ])
+  
+  # Set up many clusters and find the root cluster.
+  num_clusters = ceiling(min( 15, nrow( good_points ) / 30 ))
+  cluster_mod = kmeans( good_points, num_clusters )
+  root_cluster_label = cluster_mod$cluster[root_idx_g]
+  connected_set_g     = which(cluster_mod$cluster == root_cluster_label)
+  not_connected_yet_g = which(cluster_mod$cluster != root_cluster_label)
+  
+  # Used during development
+  #  plot_branchmodel(branchmodel)
+  qplot( x = good_points$branch_viz_1,
+         y = good_points$branch_viz_2,
+         colour = factor(cluster_mod$cluster) ) +
+    geom_point(data = gap, aes( x = branch_viz_1, y = branch_viz_2), colour = "red")
+  
+  # Iterate over the rest, incrementing the connected set.
+  for( i in 1:( num_clusters - 1 ) ){
+    # Update the root cluster and find the closest other cluster.
+    nearest_points = FNN::get.knnx( query = good_points[ connected_set_g, ], 
+                                    data  = good_points[ not_connected_yet_g, ], 
+                                    k = 1 )
+    best_query_c = which.min( nearest_points$nn.dist )
+    best_datum_s = nearest_points$nn.index[best_query_c]
+    closest_cluster_label  = cluster_mod$cluster[not_connected_yet_g[best_datum_s]]
+    closest_cluster_idx_g    = which( closest_cluster_label == cluster_mod$cluster )
+
+    # Does the gap between them have many bad points nearby?
+    gap = bipartite_closest_pair( coords_1 = good_points[ connected_set_g, ], 
+                                  coords_2 = good_points[ closest_cluster_idx_g, ] )
+    assertthat::assert_that( gap$distance != 0 )
+    gap = (gap$coords[1, , drop = F] + gap$coords[2, , drop = F]) / 2
+    gap_nearby_points_a = c(FNN::get.knnx( query = gap, data = all_points, k = 20 )$nn.index)
+    gap_nearby_assigments = table( is_good[gap_nearby_points_a] )
+    gap_nearby_assigments = gap_nearby_assigments / sum(gap_nearby_assigments)
+    
+    # If yes, break and return current connected set. If no, increment connected set.
+    if( gap_nearby_assigments[["bad"]] >= 0.25 ){
+      break
+    } else {
+      connected_set_g     = union( connected_set_g, closest_cluster_idx_g )
+      not_connected_yet_g = setdiff( 1:nrow( good_points ), connected_set_g )
+      assertthat::assert_that(0==length(intersect(not_connected_yet_g, connected_set_g)))
+    }
+  }
+  connected_set_a = good_idx[connected_set_g]
+  assertthat::assert_that( is.atomic(  connected_set_a ) )
+  assertthat::assert_that( is.numeric( connected_set_a ) )
+  assertthat::assert_that( !any(is.na( connected_set_a ) ) )
+  assertthat::assert_that( all( connected_set_a %in% 1:nrow( all_points ) ) )
+  return( connected_set_a )
+}
 ```

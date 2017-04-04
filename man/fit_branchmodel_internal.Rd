@@ -4,7 +4,7 @@
 \alias{fit_branchmodel_internal}
 \title{Internal branchmodel function that performs fitting.}
 \usage{
-fit_branchmodel_internal(branchmodel, max_iter = 20, tol = 1e-04)
+fit_branchmodel_internal(branchmodel, max_iter, tol)
 }
 \description{
 Internal branchmodel function that performs fitting.
