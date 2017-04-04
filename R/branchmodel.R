@@ -101,7 +101,7 @@ fit_branchmodel = function( raw_data, max_iter = 20, tol = 0.01 ) {
   branchmodel@center = unlist( apply( X = branchmodel@raw_data, FUN = median, MARGIN = 2 ) )
   branchmodel = initialize_tips( branchmodel )
   # # Distances to branches (using dist to rays from center through tips)
-  branchmodel@dist_df = data.frame( matrix( NA, ncol = 3, nrow = nrow(branchmodel) ) )
+  branchmodel@dist_df = data.frame( matrix( NA, ncol = 3, nrow = nrow( branchmodel@raw_data ) ) )
   branchmodel = get_simple_sq_distances( branchmodel ) 
   # # Assign to nearest branch
   branchmodel = reassign_points( branchmodel ) 

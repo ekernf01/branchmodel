@@ -155,7 +155,9 @@ find_contiguous_region = function( all_points, good_idx, root_idx ) {
   assertthat::are_equal(good_points[root_idx_g, ], all_points[root_idx_a, ])
   
   # Set up many clusters and find the root cluster.
-  num_clusters = ceiling(min( 15, nrow( good_points ) / 30 ))
+  num_clusters = ceiling(nrow( good_points ) / 30 )
+  num_clusters = ifelse(num_clusters<2, 2, num_clusters)
+  num_clusters = ifelse(num_clusters>30, 30, num_clusters)
   cluster_mod = kmeans( good_points, num_clusters )
   root_cluster_label = cluster_mod$cluster[root_idx_g]
   connected_set_g     = which(cluster_mod$cluster == root_cluster_label)
@@ -163,11 +165,10 @@ find_contiguous_region = function( all_points, good_idx, root_idx ) {
   
   # Used during development
   #  plot_branchmodel(branchmodel)
-  qplot( x = good_points$branch_viz_1,
-         y = good_points$branch_viz_2,
-         colour = factor(cluster_mod$cluster) ) +
-    geom_point(data = gap, aes( x = branch_viz_1, y = branch_viz_2), colour = "red")
-  
+  # qplot( x = good_points$branch_viz_1,
+  #        y = good_points$branch_viz_2,
+  #        colour = factor(cluster_mod$cluster) ) 
+
   # Iterate over the rest, incrementing the connected set.
   for( i in 1:( num_clusters - 1 ) ){
     # Update the root cluster and find the closest other cluster.

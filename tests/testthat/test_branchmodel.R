@@ -1,7 +1,7 @@
 
 # # Unit tests for distance_to_line_segment
 testthat::test_that("distance_to_line_segment is correct", {
-  
+
   expect_equal( 1,       distance_to_line_segment( tip1 = c( 0,0 ),
                                                    tip2 = c( 0, 1 ),
                                                    point = c( 1, 1 ) ) )
@@ -17,7 +17,7 @@ testthat::test_that("distance_to_line_segment is correct", {
 })
 
 testthat::test_that("get_connected_component is correct", {
-  
+
   expect_equal( get_connected_component( matrix(c(1:5, 5:1), ncol = 2), 5), c(5, 1) )
   three_plus_three = matrix(c(1, 2, 3,
                               2, 3, 1,
@@ -28,7 +28,7 @@ testthat::test_that("get_connected_component is correct", {
   expect_equal( get_connected_component( three_plus_three, 1), 1:3 )
   expect_equal( get_connected_component( three_plus_three, 4), 4:6 )
 })
-  
+
 # Set up some test data
 set.seed(which(LETTERS=="Y"))
 test_Y = data.frame( x1 = c( 1:100, 51:100 ) + 3*rnorm(150),
@@ -39,7 +39,7 @@ c3 = data.frame( x = rnorm(50) + 05,  y = rnorm(50) + 10 )
 c4 = data.frame( x = rnorm(50) + 10,  y = rnorm(50) + 05 )
 
 testthat::test_that("find_contiguous_region is reasonable", {
-  idx = find_contiguous_region(  all_points = rbind( c1, c2, c3, c4 ), 
+  idx = find_contiguous_region(  all_points = rbind( c1, c2, c3, c4 ),
                                  good_idx = c(1:50, 101:150), root_idx = 1)
   expect_equal(sort(idx), 1:50)
 } )
