@@ -224,10 +224,9 @@ setMethod( "reassign_points", valueClass = "branchmodel",
       warning("Restarting empty branch! This is a bad sign for convergence. Check your results visually.\n")
       tip_assignments = branchmodel@assignments [ branchmodel@tip_indices ]
       cluster_hogging_tips = which.max( table( tip_assignments ) )
-      new_point = branchmodel@tips[ cluster ]
-      neighbors = c( FNN::knnx.index( query = branchmodel@raw_data[new_point, ], 
-                                      data = branchmodel@raw_data[-new_point, ], k = 10 ) )
-      branchmodel@assignments[c(new_point, neighbors)] = cluster
+      neighbors = c( FNN::knnx.index( query = branchmodel@tips[ cluster ], 
+                                      data = branchmodel@raw_data, k = 11 ) )
+      branchmodel@assignments[neighbors] = cluster
     }
   }
   

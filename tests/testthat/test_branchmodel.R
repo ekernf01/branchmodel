@@ -44,6 +44,15 @@ testthat::test_that("find_contiguous_region is reasonable", {
   expect_equal(sort(idx), 1:50)
 } )
 
+
+testthat::test_that("Empty branches are successfully reinitialized",
+                    {
+                      orig_assign = branchmodel1@assignments
+                      branchmodel1@assignments[branchmodel1@assignments==1] = as.integer(0)
+                      branchmodel1 = reassign_points(branchmodel1)
+                      assertthat::are_equal(orig_assign, branchmodel1@assignments)
+                    })
+
 branchmodel1 =  fit_branchmodel( test_Y )
 show( branchmodel1 )
 plot_branchmodel( branchmodel1 )
