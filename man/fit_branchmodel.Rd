@@ -4,14 +4,17 @@
 \alias{fit_branchmodel}
 \title{Fit a "Y" shape to data}
 \usage{
-fit_branchmodel(raw_data, max_iter = 10, tol = 0.01)
+fit_branchmodel(raw_data, max_iter = 100, tol = 0.01)
 }
 \arguments{
 \item{raw_data}{Dataframe with numeric columns.}
 
 \item{max_iter}{Default 20.}
 
-\item{tol}{Stops once less than 100*tol percent of points are reclassified.}
+\item{tol}{Stops when less than 100*tol percent of points are reclassified.}
+}
+\value{
+S4 object of class "branchmodel".
 }
 \description{
 Fit a "Y" shape to data

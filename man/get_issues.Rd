@@ -6,6 +6,9 @@
 \usage{
 get_issues(object, ...)
 }
+\value{
+Returns empty string if everything is fine. Otherwise, some other length-1 character.
+}
 \description{
 Check whether a branchmodel object is valid.
 }

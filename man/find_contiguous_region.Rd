@@ -13,6 +13,10 @@ find_contiguous_region(all_points, good_idx, root_idx)
 
 \item{root_idx}{The indices returned include this number.}
 }
+\value{
+An atomic vector of indexes such that `all_points[output, ]` is
+contiguous and not interrupted by `all_points[-output, ]`.
+}
 \description{
 Find a contiguous subset of points.
 }

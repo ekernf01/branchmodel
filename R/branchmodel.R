@@ -19,7 +19,7 @@ new_branchmodel_helper = setClass( "branchmodel",
 
 #' Check whether a branchmodel object is valid.
 #'
-#' @value Returns empty string if everything is fine. Otherwise, some other length-1 character.
+#' @return Returns empty string if everything is fine. Otherwise, some other length-1 character.
 setGeneric("get_issues", function( object, ... ) standardGeneric("get_issues"))
 setMethod("get_issues", valueClass = "character", signature = signature(object = "branchmodel"), function(object) {
   issues = ""
@@ -86,15 +86,15 @@ setMethod("get_simple_sq_distances", valueClass = "branchmodel",
 #'
 #' @param raw_data Dataframe with numeric columns.
 #' @param max_iter Default 20.
-#' @param tol Stops once less than 100*tol percent of points are reclassified.
-#' @value S4 object of class "branchmodel".
+#' @param tol Stops when less than 100*tol percent of points are reclassified.
+#' @return S4 object of class "branchmodel".
 #' @details This function imposes a "Y" shape on data in a (preferably 2D) space.
 #' It represents the shape as three principal curves (from `princurve`), which each point
 #' hard-assigned to one curve. The internal methods iterate
 #' between reassigning the data to the nearest branch and adjusting the branches,
 #' with a heuristic to make the curves roughly meet in the center.
 #' @export
-fit_branchmodel = function( raw_data, max_iter = 20, tol = 0.01 ) {
+fit_branchmodel = function( raw_data, max_iter = 100, tol = 0.01 ) {
   branchmodel = new_branchmodel_helper()
   branchmodel@raw_data = raw_data
   # # Initialize center to medioid and tips via kmeans++ ish
@@ -175,7 +175,7 @@ setMethod( "fit_branches", valueClass = "branchmodel",
     center_copies = t( matrix( branchmodel@center, ncol = n_aug, nrow = length( branchmodel@center ) ) )
     colnames( center_copies ) = colnames( branchmodel@raw_data )
     pc_input = rbind( branchmodel@raw_data[this_cluster, ], center_copies )
-    branchmodel@models[[i]] = princurve::principal.curve( x = as.matrix(pc_input), smoother = "lowess" )
+    branchmodel@models[[i]] = princurve::principal.curve( x = as.matrix(pc_input) )
     
     #remove dummy data
     branchmodel@models[[i]] = princurve_truncate( branchmodel@models[[i]], n_remove = n_aug )
@@ -214,6 +214,23 @@ setMethod( "reassign_points", valueClass = "branchmodel",
   shared = ambiguity > -2*sd
   branchmodel@assignments[shared] = as.integer(0)
 
+  # Don't ever change the assignment of the tips. Restart any empty branch at its tip.
+  # If a cluster is empty, there must be at least two tips in the same 
+  # cluster (by the pigeonhole principle), and one of these will be reassigned to the empty cluster.
+  # Tip is accompanied by its 10 nearest neighbors, so that the princurve fit will have enough data.
+  branchmodel@assignments[branchmodel@tip_indices[1:3]] = 1:3
+  for( cluster in 1:3 ){
+    if( sum(cluster == branchmodel@assignments) < 2 ){
+      warning("Restarting empty branch! This is a bad sign for convergence. Check your results visually.\n")
+      tip_assignments = branchmodel@assignments [ branchmodel@tip_indices ]
+      cluster_hogging_tips = which.max( table( tip_assignments ) )
+      new_point = branchmodel@tips[ cluster ]
+      neighbors = c( FNN::knnx.index( query = branchmodel@raw_data[new_point, ], 
+                                      data = branchmodel@raw_data[-new_point, ], k = 10 ) )
+      branchmodel@assignments[c(new_point, neighbors)] = cluster
+    }
+  }
+  
   # Make sure assigned cells are in one contiguous block. Assign disconnected segments as ambiguous (0).
   for( cluster in 1:3 ){
     this_cluster_idx = which( branchmodel@assignments == cluster )
@@ -223,21 +240,7 @@ setMethod( "reassign_points", valueClass = "branchmodel",
     indices_to_discard = setdiff( this_cluster_idx, conn_comp )
     branchmodel@assignments[ indices_to_discard ] = as.integer(0)
   }
-  
-  
-  # Empty branches restart at tips. If a cluster is empty, there must be at least two tips in the same 
-  # cluster (by the pigeonhole principle), and one of these will be reassigned to the empty cluster.
-  # Tip is accompanied by its 10 nearest neighbors, so that the princurve fit will have enough data.
-  for( cluster in 1:3 ){
-    if( !cluster %in% branchmodel@assignments ){
-      tip_assignments = branchmodel@assignments [ branchmodel@tip_indices ]
-      cluster_hogging_tips = which.max( table( tip_assignments ) )
-      new_point = branchmodel@tips[ cluster ]
-      neighbors = c( FNN::knnx.index( query = branchmodel@raw_data[new_point, ], 
-                                      data = branchmodel@raw_data[-new_point, ], k = 10 ) )
-      branchmodel@assignments[c(new_point, neighbors)] = cluster
-    }
-  }
+ 
   return( branchmodel )
 })
 

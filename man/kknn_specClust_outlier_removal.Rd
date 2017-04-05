@@ -6,6 +6,9 @@
 \usage{
 kknn_specClust_outlier_removal(data, centers, nn = 7, ...)
 }
+\value{
+Atomic vector of length `nrow(data)` containing cluster labels.
+}
 \description{
 Calls `kknn::specClust` with preprocessing to remove outliers and postprocessing to label them.
 }

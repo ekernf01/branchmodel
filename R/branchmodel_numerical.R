@@ -102,7 +102,7 @@ bipartite_closest_pair = function( coords_1, coords_2 ){
 
 #' Calls `kknn::specClust` with preprocessing to remove outliers and postprocessing to label them.
 #' 
-#' @value Atomic vector of length `nrow(data)` containing cluster labels.
+#' @return Atomic vector of length `nrow(data)` containing cluster labels.
 #' @details This is an attempt to circumvent this ARPACK failure issue: https://github.com/KlausVigo/kknn/issues/7
 kknn_specClust_outlier_removal = function( data, centers, nn = 7, ...){
   # remove outliers
@@ -128,7 +128,7 @@ kknn_specClust_outlier_removal = function( data, centers, nn = 7, ...){
 #' @param all_points Data used.
 #' @param good_idx The "good" points are `all_points[good_idx, ]`.
 #' @param root_idx The indices returned include this number.
-#' @value An atomic vector of indexes such that `all_points[output, ]` is
+#' @return An atomic vector of indexes such that `all_points[output, ]` is
 #' contiguous and not interrupted by `all_points[-output, ]`.
 #' @details Given a set of "good" points and a "root", find a 
 #' group of good points that contains the root and doesn't span gaps
